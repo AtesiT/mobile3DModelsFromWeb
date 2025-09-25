@@ -1,0 +1,11 @@
+Model Information:
+* title:	Mita 3
+* source:	https://sketchfab.com/3d-models/mita-3-ab9e6146a6aa4ac992313a4a5e8671d4
+* author:	ilyakardailskiy (https://sketchfab.com/ilyakardailskiy)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Mita 3" (https://sketchfab.com/3d-models/mita-3-ab9e6146a6aa4ac992313a4a5e8671d4) by ilyakardailskiy (https://sketchfab.com/ilyakardailskiy) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

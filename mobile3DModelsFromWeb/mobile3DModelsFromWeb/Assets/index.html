@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>3D check with Shader Skysphere</title>
+  <style>
+    body { 
+      margin: 0; 
+      font-family: sans-serif;
+    }
+    .container {
+      display: flex;
+      justify-content: space-between;
+    }
+    .canvas-container {
+      width: 45%;
+      height: 100vh;
+      overflow: hidden;
+    }
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* Главный контейнер для панели и видео */
+    #bottom-bar {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center; 
+      gap: 15px;
+      z-index: 100;
+    }
+
+    /* Стили для панели управления */
+    #controls-panel {
+      background-color: rgba(40, 40, 40, 0.8);
+      border-radius: 10px;
+      padding: 10px 15px;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      color: white;
+      border: 1px solid #555;
+    }
+    #controls-panel button {
+      padding: 8px 12px;
+      border: 1px solid #777;
+      background-color: #4a4d50;
+      color: white;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    #controls-panel button:hover {
+      background-color: #6a6d70;
+    }
+    #controls-panel .speed-control {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    #speed-display {
+      font-weight: bold;
+      min-width: 25px;
+      text-align: center;
+    }
+
+    /* Стили для контейнера с видео */
+    #video-container {
+      width: 500px; /* Fixed width, adjustable */
+      aspect-ratio: 16 / 9; /* Explicitly enforce 16:9 aspect ratio */
+      background-color: #000;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid #555;
+      position: relative;
+    }
+    #video-container iframe {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border: 0;
+      display: block; /* Ensure no extra spacing */
+    }
+  </style>
+</head>
+<body bgcolor="#303336">
+
+<!-- Контейнеры для 3D-сцен -->
+<div class="container">
+  <div class="canvas-container" id="canvas-container-left"></div>
+  <div class="canvas-container" id="canvas-container-right"></div>
+</div>
+
+<!-- Общий контейнер для панели и видео -->
+<div id="bottom-bar">
+  <!-- Контейнер с видео с Rutube -->
+  <div id="video-container">
+    <iframe 
+      src="https://rutube.ru/play/embed/4a5c94fc10ef3dc04d93d3f03934af2d" 
+      frameBorder="0" 
+      allow="clipboard-write; autoplay" 
+      webkitAllowFullScreen 
+      mozallowfullscreen 
+      allowFullScreen>
+    </iframe>
+  </div>
+
+  <!-- Панель управления -->
+  <div id="controls-panel">
+    <button id="btn-start" title="Начать вращение">▶️</button>
+    <button id="btn-stop" title="Остановить вращение">⏹️</button>
+    <div class="speed-control">
+      <span>Скорость:</span>
+      <button id="btn-speed-down" title="Уменьшить скорость">-</button>
+      <span id="speed-display">5</span>
+      <button id="btn-speed-up" title="Увеличить скорость">+</button>
+    </div>
+    <button id="btn-rotate-left" title="Вращать влево">⬅️</button>
+    <button id="btn-rotate-right" title="Вращать вправо">➡️</button>
+    <button id="btn-rotate-up" title="Вращать вверх">⬆️</button>
+    <button id="btn-rotate-down" title="Вращать вниз">⬇️</button>
+    <button id="btn-change-model">Сменить модель</button>
+  </div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "js/three.module.js",
+    "OrbitControls": "js/OrbitControls.js",
+    "GLTFLoader": "js/GLTFLoader.js",
+    "RectAreaLightUniformsLib": "js/RectAreaLightUniformsLib.js"
+  }
+}
+</script>
+
+<script type="module">
+  import * as THREE from 'three';
+  import { OrbitControls } from 'OrbitControls';
+  import { GLTFLoader } from 'GLTFLoader';
+  import { RectAreaLightUniformsLib } from 'RectAreaLightUniformsLib';
+
+  const allControls = []; 
+  const allScenes = [];   
+  const loader = new GLTFLoader(); 
+  let currentModelSetIndex = 0;
+
+  const modelSets = [
+    ['./model/scene.gltf', './model3/scene.gltf'],
+    ['./model2/scene.gltf', './model4/scene.gltf'],
+  ];
+
+  function createShaderBackground() {
+    const uniforms = { iTime: { value: 0 } };
+    const vertexShader = `
+      varying vec3 vPos;
+      void main() {
+        vPos = position;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `;
+    const fragmentShader = `
+        varying vec3 vPos; uniform float iTime;
+        #define iterations 17
+        #define formuparam 0.53
+        #define volsteps 20
+        #define stepsize 0.1
+        #define speed 0.010 
+        #define brightness 0.0015
+        #define darkmatter 0.300
+        #define distfading 0.730
+        #define saturation 0.850
+        void main() {
+            vec3 dir = normalize(vPos); float time = iTime * speed + .25;
+            float a1=.5, a2=.8; mat2 rot1=mat2(cos(a1),sin(a1),-sin(a1),cos(a1)); mat2 rot2=mat2(cos(a2),sin(a2),-sin(a2),cos(a2));
+            dir.xz *= rot1; dir.xy *= rot2; vec3 from = vec3(1.,.5,0.5); from += vec3(time*2.,time,-2.); from.xz *= rot1; from.xy *= rot2;
+            float s=0.1, fade=1.; vec3 v=vec3(0.);
+            for (int r=0; r<volsteps; r++) {
+                vec3 p=from+s*dir*.5; p=abs(vec3(0.850)-mod(p,vec3(0.850*2.)));
+                float pa,a=pa=0.;
+                for (int i=0; i<iterations; i++) { 
+                    p=abs(p)/dot(p,p)-formuparam; a+=abs(length(p)-pa); pa=length(p);
+                }
+                float dm=max(0.,darkmatter-a*a*.001); a*=a*a; if (r>6) fade*=1.-dm;
+                v+=fade; v+=vec3(s,s*s,s*s*s*s)*a*brightness*fade; fade*=distfading; s+=stepsize;
+            }
+            v=mix(vec3(length(v)),v,saturation); gl_FragColor=vec4(v*.01,1.);	
+        }
+    `;
+    const geometry = new THREE.SphereGeometry(1000, 64, 64);
+    const material = new THREE.ShaderMaterial({
+      uniforms: uniforms, vertexShader: vertexShader, fragmentShader: fragmentShader, side: THREE.BackSide, depthWrite: false
+    });
+    return new THREE.Mesh(geometry, material);
+  }
+
+  function init(containerId, positionOffset, modelPath) {
+    const container = document.getElementById(containerId);
+    const clock = new THREE.Clock();
+    const scene = new THREE.Scene();
+    allScenes.push(scene);
+    const camera = new THREE.PerspectiveCamera(75, container.offsetWidth / container.offsetHeight, 0.1, 3000);
+    camera.position.set(2 * positionOffset, 2.5, 2);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(container.offsetWidth, container.offsetHeight);
+    container.appendChild(renderer.domElement);
+    const shaderBackground = createShaderBackground();
+    scene.add(shaderBackground);
+    loader.load(modelPath, gltf => {
+        const model = gltf.scene; model.name = "loaded_model"; scene.add(model);
+      }, undefined, error => console.error('An error happened during model loading:', error)
+    );
+    const light1 = new THREE.DirectionalLight(0xffffff, 1); light1.position.set(-2, 0, 10); light1.lookAt(0, -1, 0); scene.add(light1);
+    const light2 = new THREE.DirectionalLight(0xffffff, 1); light2.position.set(2, 0, 5); light2.lookAt(0, 1, 0); scene.add(light2);
+    RectAreaLightUniformsLib.init();
+    const rectLight1 = new THREE.RectAreaLight(0xffffff, 1, 100, 100); rectLight1.position.set(-10 + positionOffset, 0, 0); rectLight1.rotation.y = Math.PI + Math.PI / 4; scene.add(rectLight1);
+    const rectLight2 = new THREE.RectAreaLight(0xffffff, 1, 100, 100); rectLight2.position.set(10 + positionOffset, 0, 0); rectLight2.rotation.y = Math.PI - Math.PI / 4; scene.add(rectLight2);
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.autoRotate = true; controls.autoRotateSpeed = 5; controls.enableDamping = true;
+    allControls.push(controls);
+    window.addEventListener('resize', onWindowResize, false);
+    function onWindowResize() {
+      const width = container.offsetWidth; const height = container.offsetHeight;
+      camera.aspect = width / height; camera.updateProjectionMatrix(); renderer.setSize(width, height);
+    }
+    function animate() {
+      requestAnimationFrame(animate);
+      shaderBackground.material.uniforms.iTime.value = clock.getElapsedTime();
+      controls.update(); renderer.render(scene, camera);
+    }
+    animate();
+  }
+
+  const btnStart = document.getElementById('btn-start');
+  const btnStop = document.getElementById('btn-stop');
+  const btnSpeedUp = document.getElementById('btn-speed-up');
+  const btnSpeedDown = document.getElementById('btn-speed-down');
+  const btnChangeModel = document.getElementById('btn-change-model');
+  const btnRotateLeft = document.getElementById('btn-rotate-left');
+  const btnRotateRight = document.getElementById('btn-rotate-right');
+  const btnRotateUp = document.getElementById('btn-rotate-up');
+  const btnRotateDown = document.getElementById('btn-rotate-down');
+  const speedDisplay = document.getElementById('speed-display');
+
+  function updateSpeedDisplay() {
+    if (allControls.length > 0) speedDisplay.textContent = allControls[0].autoRotateSpeed.toFixed(1);
+  }
+
+  btnStart.addEventListener('click', () => allControls.forEach(c => c.autoRotate = true));
+  btnStop.addEventListener('click', () => allControls.forEach(c => c.autoRotate = false));
+  btnSpeedUp.addEventListener('click', () => {
+    allControls.forEach(c => c.autoRotateSpeed += 1); updateSpeedDisplay();
+  });
+  btnSpeedDown.addEventListener('click', () => {
+    allControls.forEach(c => c.autoRotateSpeed = Math.max(0, c.autoRotateSpeed - 1)); updateSpeedDisplay();
+  });
+  btnChangeModel.addEventListener('click', () => {
+    currentModelSetIndex = (currentModelSetIndex + 1) % modelSets.length;
+    const newModelPaths = modelSets[currentModelSetIndex];
+    allScenes.forEach((scene, index) => {
+      const oldModel = scene.getObjectByName("loaded_model");
+      if (oldModel) scene.remove(oldModel);
+      loader.load(newModelPaths[index], (gltf) => {
+        const newModel = gltf.scene; newModel.name = "loaded_model"; scene.add(newModel);
+      }, undefined, (error) => {
+        console.error(`Error loading model ${newModelPaths[index]}:`, error);
+        alert(`Не удалось загрузить модель: ${newModelPaths[index]}`);
+      });
+    });
+  });
+
+  // Manual rotation controls for camera
+  const rotationStep = THREE.MathUtils.degToRad(5); // 5 degrees per click
+  function rotateCamera(control, axis, angle) {
+    if (!control.autoRotate) {
+      const camera = control.object;
+      const target = control.target;
+      const distance = camera.position.distanceTo(target);
+      const offset = camera.position.clone().sub(target);
+      const matrix = new THREE.Matrix4();
+      matrix.makeRotationAxis(axis.normalize(), angle);
+      offset.applyMatrix4(matrix);
+      camera.position.copy(target).add(offset);
+      camera.lookAt(target);
+      control.update();
+    }
+  }
+
+  btnRotateLeft.addEventListener('click', () => {
+    allControls.forEach(c => rotateCamera(c, new THREE.Vector3(0, 1, 0), rotationStep)); // Rotate left around Y-axis
+  });
+  btnRotateRight.addEventListener('click', () => {
+    allControls.forEach(c => rotateCamera(c, new THREE.Vector3(0, 1, 0), -rotationStep)); // Rotate right around Y-axis
+  });
+  btnRotateUp.addEventListener('click', () => {
+    allControls.forEach(c => {
+      if (!c.autoRotate) {
+        const camera = c.object;
+        const target = c.target;
+        const distance = camera.position.distanceTo(target);
+        const offset = camera.position.clone().sub(target);
+        const upAxis = new THREE.Vector3(0, 1, 0);
+        const rightAxis = new THREE.Vector3().crossVectors(offset, upAxis).normalize();
+        rotateCamera(c, rightAxis, rotationStep); // Rotate up around right axis
+      }
+    });
+  });
+  btnRotateDown.addEventListener('click', () => {
+    allControls.forEach(c => {
+      if (!c.autoRotate) {
+        const camera = c.object;
+        const target = c.target;
+        const distance = camera.position.distanceTo(target);
+        const offset = camera.position.clone().sub(target);
+        const upAxis = new THREE.Vector3(0, 1, 0);
+        const rightAxis = new THREE.Vector3().crossVectors(offset, upAxis).normalize();
+        rotateCamera(c, rightAxis, -rotationStep); // Rotate down around right axis
+      }
+    });
+  });
+
+  const initialModels = modelSets[0];
+  init("canvas-container-left", -1, initialModels[0]);
+  init("canvas-container-right", 1, initialModels[1]);
+  updateSpeedDisplay();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <ProduceReferenceAssembly>true</ProduceReferenceAssembly>
+    <ProduceReferenceAssemblyInOutDir>true</ProduceReferenceAssemblyInOutDir>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <DebugType>portable</DebugType>
+    <DebugSymbols>true</DebugSymbols>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="Assets\index.html" />
+    <None Remove="Assets\js\GLTFLoader.js" />
+    <None Remove="Assets\js\OrbitControls.js" />
+    <None Remove="Assets\js\RectAreaLightUniformsLib.js" />
+    <None Remove="Assets\js\three.module.js" />
+    <None Remove="Assets\model2\scene.gltf" />
+    <None Remove="Assets\model3\scene.gltf" />
+    <None Remove="Assets\model4\scene.gltf" />
+    <None Remove="Assets\model\scene.gltf" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Assets\index.html" />
+    <EmbeddedResource Include="Assets\js\GLTFLoader.js" />
+    <EmbeddedResource Include="Assets\js\OrbitControls.js" />
+    <EmbeddedResource Include="Assets\js\RectAreaLightUniformsLib.js" />
+    <EmbeddedResource Include="Assets\js\three.module.js" />
+    <EmbeddedResource Include="Assets\model2\scene.gltf" />
+    <EmbeddedResource Include="Assets\model3\scene.gltf" />
+    <EmbeddedResource Include="Assets\model4\scene.gltf" />
+    <EmbeddedResource Include="Assets\model\scene.gltf" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Xamarin.Forms" Version="5.0.0.2196" />
+    <PackageReference Include="Xamarin.Essentials" Version="1.8.1" />
+  </ItemGroup>
+</Project>
